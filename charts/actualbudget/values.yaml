@@ -43,6 +43,11 @@ podAnnotations: {}
 # -- This is for setting Kubernetes Labels to a Pod. For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 podLabels: {}
 
+# -- This is for setting additional env vars to the container spec. For more information checkout: https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/
+extraEnvVars: []
+# - name: SOME_VARIABLE
+#   value: "and its value"
+
 # -- This is for setting Security Context to a Pod. For more information checkout: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 podSecurityContext: {}
   # fsGroup: 2000
