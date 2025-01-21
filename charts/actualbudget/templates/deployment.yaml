@@ -48,6 +48,9 @@ spec:
               value: {{ .Values.files.server }}
             - name: ACTUAL_USER_FILES
               value: {{ .Values.files.user }}
+          {{- with .Values.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
