@@ -45,3 +45,15 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[2].value
           value: "/somewhere/user"
+  - it: should render extra env vars when supplied
+    set:
+      extraEnvVars:
+        - name: ACTUAL_TEST_VAR
+          value: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].name
+          value: ACTUAL_TEST_VAR
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: 1
