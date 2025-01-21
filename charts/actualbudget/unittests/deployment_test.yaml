@@ -56,4 +56,4 @@ tests:
           value: ACTUAL_TEST_VAR
       - equal:
           path: spec.template.spec.containers[0].env[3].value
-          value: 1
+          value: "1"
