@@ -24,6 +24,7 @@ checks:
     - "charts/kserve/**"
     - "**/crds/**"
     - "**/tests/**"
+    - "**/unittests/**"
     - "**/examples/**"
     - "**/*.test.yaml"
     - "charts/*/charts/**"
