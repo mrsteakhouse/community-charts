@@ -1,0 +1,7 @@
+checks:
+  addAllBuiltIn: true
+
+  exclude: []
+
+  ignorePaths:
+    - "charts/kserve/**"

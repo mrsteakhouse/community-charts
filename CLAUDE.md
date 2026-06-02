@@ -90,11 +90,17 @@ charts/<name>/
 - Breaking changes bump MAJOR version and must document manual upgrade steps in `README.md.gotmpl` under an "Upgrading" section.
 - The `artifacthub.io/changes` annotation in `Chart.yaml` is used to auto-generate release notes — always populate it for every change.
 
-### CI Pipeline (`.github/workflows/release.yml`)
+### CI Pipeline
+
+**`.github/workflows/release.yml`** (runs on all PRs/pushes):
 
 1. **lint-ah**: Runs `ah lint` on all charts for ArtifactHub compliance.
 2. **lint-test**: Runs `ct lint` (which also calls `helm unittest`) and `ct install` on changed charts only. Charts with a `.skip-kind-test` file skip the `ct install` step.
 3. **release**: On merge to `main`, runs `chart-releaser` to package, GPG-sign, and publish changed charts to GitHub Pages.
+
+**`.github/workflows/security-scan.yml`** (runs on changes to `charts/**`):
+
+4. **security-scan**: Runs KubeLinter (all built-in checks, `kserve` excluded via `.kube-linter.yaml`) and Trivy misconfiguration/vulnerability scan (HIGH + CRITICAL severity) against chart templates. Both results are uploaded as SARIF to GitHub Security.
 
 ### Unit Test Convention
 
@@ -104,39 +110,22 @@ Tests live in `unittests/` as YAML files using [helm-unittest](https://github.co
 
 `values.schema.json` uses JSON Schema draft-07 with `"additionalProperties": false` at the root — every new value added to `values.yaml` must have a corresponding schema entry or chart linting will fail.
 
-### Pre-commit Hook
+### Pre-commit Hooks
 
-The repo uses `helm-docs` as a pre-commit hook (`.pre-commit-config.yaml`). Run `pre-commit install` to activate it locally.
+The repo uses three pre-commit hooks (`.pre-commit-config.yaml`). Run `pre-commit install` to activate locally.
 
-**Behavior on commit:** If `README.md.gotmpl` (or any chart file that affects docs) was changed, `helm-docs` regenerates `README.md` during the hook. The hook modifies the file in place and the commit fails. You must then stage the updated `README.md` and commit again:
+| Hook | Trigger | Behavior on failure |
+|---|---|---|
+| `helm-docs` | Any chart file change | Regenerates `README.md` in place; commit fails — re-stage and retry |
+| `kube-linter` | Files matching `charts/**` | Fails commit if Kubernetes best-practice violations found (config: `.kube-linter.yaml`; `kserve` is excluded) |
+| `trivyfs-docker` | Files matching `charts/**` | Fails commit if HIGH or CRITICAL misconfigurations/vulnerabilities are detected |
+
+**helm-docs re-stage workflow:** When `README.md` is modified by the hook, stage it and re-run:
 
 ```bash
 git add charts/<chart-name>/README.md
 git commit -s  # retried after hook updates
 ```
-
-### ArtifactHub Annotations (`Chart.yaml`)
-
-All supported `artifacthub.io/` annotations for Helm charts:
-
-| Annotation | Format | Description |
-|---|---|---|
-| `artifacthub.io/alternativeName` | string | Alternate package name for improved search ranking (e.g. `postgres` for `postgresql`) |
-| `artifacthub.io/category` | string | Package category: `ai-machine-learning`, `database`, `integration-delivery`, `monitoring-logging`, `networking`, `security`, `storage`, `streaming-messaging`, or `skip-prediction` |
-| `artifacthub.io/changes` | YAML string | Changelog for the release. Each entry has `kind` (`added`, `changed`, `deprecated`, `removed`, `fixed`, `security`) and `description`. Optional `links` list with `name`/`url`. |
-| `artifacthub.io/containsSecurityUpdates` | `"true"`/`"false"` | Flags releases that contain security patches |
-| `artifacthub.io/crds` | YAML string | Lists CRDs provided by the chart. Each entry: `kind`, `version`, `name`, `displayName`, `description` |
-| `artifacthub.io/crdsExamples` | YAML string | Example Kubernetes manifests for each CRD |
-| `artifacthub.io/images` | YAML string | Container images used by the chart. Each entry: `name`, `image`, optional `platforms`, optional `whitelisted` |
-| `artifacthub.io/license` | string | SPDX license identifier (e.g. `MIT`, `Apache-2.0`) |
-| `artifacthub.io/links` | YAML string | Named resource links. Each entry: `name`, `url`. Name `support` has special meaning on ArtifactHub. |
-| `artifacthub.io/maintainers` | YAML string | Maintainer display info. Each entry: `name`, `email` |
-| `artifacthub.io/operator` | `"true"`/`"false"` | Marks the chart as a Kubernetes operator |
-| `artifacthub.io/operatorCapabilities` | string | Operator capability level: `Basic Install`, `Seamless Upgrades`, `Full Lifecycle`, `Deep Insights`, `Auto Pilot` |
-| `artifacthub.io/prerelease` | `"true"`/`"false"` | Marks this version as a pre-release |
-| `artifacthub.io/recommendations` | YAML string | Related packages. Each entry: `url` pointing to an ArtifactHub package page |
-| `artifacthub.io/screenshots` | YAML string | Visual documentation. Each entry: `title`, `url` |
-| `artifacthub.io/signKey` | YAML string | Chart signing info. Fields: `fingerprint`, `url` (public key location) |
 
 ## Contributing Requirements
 

@@ -1,0 +1,50 @@
+name: Security Scans (KubeLinter + Trivy)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'charts/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'charts/**'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run KubeLinter
+        uses: stackrox/kube-linter-action@v1.0.7
+        with:
+          directory: ./charts
+          config: .kube-linter.yaml
+          format: sarif
+          output-file: kube-linter-results.sarif
+
+      - name: Upload KubeLinter SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: kube-linter-results.sarif
+
+      - name: Run Trivy (Misconfiguration + Vulnerabilities)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: ./charts
+          severity: HIGH,CRITICAL
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: 1
+          skip-dirs: ".git,charts/*/charts,.claude,.vscode,.github,.agent,docs,tmp,examples,tests"
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
