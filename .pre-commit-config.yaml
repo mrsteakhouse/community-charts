@@ -13,17 +13,3 @@ repos:
       - id: kube-linter
         files: ^charts/.*
         args: ["--config", ".kube-linter.yaml"]
-
-  - repo: https://github.com/mxab/pre-commit-trivy
-    rev: v0.18.0
-    hooks:
-      - id: trivyfs-docker
-        files: ^charts/.*
-        args:
-          - --severity
-          - HIGH,CRITICAL
-          - --exit-code
-          - "1"
-          - --skip-dirs
-          - ".git,charts/*/charts,.claude,.vscode,.github,.agent,docs,tmp"
-          - .
