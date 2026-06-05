@@ -4,7 +4,7 @@
 
 A Helm chart for fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.
 
-![Version: 1.16.49](https://img.shields.io/badge/Version-1.16.49-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.3](https://img.shields.io/badge/AppVersion-2.23.3-informational?style=flat-square)
+![Version: 1.17.0](https://img.shields.io/badge/Version-1.17.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.3](https://img.shields.io/badge/AppVersion-2.23.3-informational?style=flat-square)
 
 ## Official Documentation
 
@@ -1133,6 +1133,7 @@ helm upgrade [RELEASE_NAME] community-charts/n8n
 | redis.image.repository | string | `"bitnamilegacy/redis"` | This is temporary workaround because of bitnami's deprecation until to completely replace it with our solution. |
 | redis.master.service.ports.redis | int | `6379` | Redis master service port |
 | resources | object | `{}` | DEPRECATED: Use main, worker, and webhook blocks resources fields instead. This field will be removed in a future release. |
+| revisionHistoryLimit | string | `nil` | The number of old ReplicaSets to retain for rollback. More information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#clean-up-policy |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":false,"runAsGroup":1000,"runAsNonRoot":true,"runAsUser":1000}` | This is for setting Security Context to a Container. For more information checkout: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/ |
 | sentry.backendDsn | string | `""` | Sentry DSN for backend. |
 | sentry.enabled | bool | `false` | Whether sentry is enabled. |
