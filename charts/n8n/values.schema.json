@@ -1232,6 +1232,42 @@
           "type": "string"
         },
         "autoNenew": {
+          "description": "DEPRECATED: Use license.autoRenew fields instead.",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "DEPRECATED: Use license.autoRenew.enabled field instead.",
+              "required": [],
+              "title": "enabled",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "offsetInHours": {
+              "default": 72,
+              "description": "DEPRECATED: Use license.autoRenew.offsetInHours field instead.",
+              "required": [],
+              "title": "offsetInHours",
+              "oneOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [],
+          "title": "autoNenew",
+          "type": "object"
+        },
+        "autoRenew": {
           "description": "The auto new license configuration",
           "properties": {
             "enabled": {
@@ -1250,7 +1286,7 @@
             }
           },
           "required": ["enabled", "offsetInHours"],
-          "title": "autoNenew",
+          "title": "autoRenew",
           "type": "object"
         },
         "serverUrl": {
@@ -1266,7 +1302,7 @@
           "type": "integer"
         }
       },
-      "required": ["enabled", "activationKey", "existingActivationKeySecret", "autoNenew", "serverUrl", "tenantId"],
+      "required": ["enabled", "activationKey", "existingActivationKeySecret", "autoRenew", "serverUrl", "tenantId"],
       "title": "license",
       "type": "object"
     },
