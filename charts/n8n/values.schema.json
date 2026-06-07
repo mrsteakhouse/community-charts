@@ -1179,11 +1179,165 @@
           "required": ["image", "resources"],
           "title": "initContainer",
           "type": "object"
+        },
+        "python": {
+          "additionalProperties": false,
+          "description": "Python Code node configuration. Requires n8n 1.111.0+ and taskRunners.mode: external.",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "description": "Enable Python code execution via external task runners (requires n8n 1.111.0+)",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "builtin": {
+              "additionalProperties": false,
+              "description": "Built-in Python module access for the Code node",
+              "properties": {
+                "modules": {
+                  "default": [],
+                  "description": "Python stdlib modules allowed in Code nodes. Use [\"*\"] to allow all.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "uniqueItems": true,
+                  "minItems": 0,
+                  "required": [],
+                  "title": "modules",
+                  "type": "array"
+                }
+              },
+              "required": ["modules"],
+              "title": "builtin",
+              "type": "object"
+            },
+            "external": {
+              "additionalProperties": false,
+              "description": "External Python package access for the Code node",
+              "properties": {
+                "allowAll": {
+                  "default": false,
+                  "description": "Allow all external Python packages in Code nodes. When true, sets N8N_RUNNERS_EXTERNAL_ALLOW=* regardless of packages list.",
+                  "required": [],
+                  "title": "allowAll",
+                  "type": "boolean"
+                },
+                "packages": {
+                  "default": [],
+                  "description": "Python packages to install via uv pip before starting the runner (e.g. [\"pandas\", \"numpy\"]). Each listed package is also automatically allowed as an external package in Code nodes.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "required": [],
+                  "title": "packages",
+                  "type": "array"
+                }
+              },
+              "required": ["allowAll", "packages"],
+              "title": "external",
+              "type": "object"
+            },
+            "persistence": {
+              "additionalProperties": false,
+              "description": "Persistence for Python packages installed by uv. Optional PVC so packages survive pod restarts without re-downloading.",
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "description": "Enable persistence. When false, packages are installed into an emptyDir and lost on pod restart.",
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "existingClaim": {
+                  "default": "",
+                  "description": "Use an existing PVC instead of creating one. When set, no PVC is created by this chart.",
+                  "required": [],
+                  "title": "existingClaim",
+                  "type": "string"
+                },
+                "storageClass": {
+                  "default": "",
+                  "description": "Storage class for the PVC. Empty string uses the cluster default.",
+                  "required": [],
+                  "title": "storageClass",
+                  "type": "string"
+                },
+                "accessMode": {
+                  "default": "ReadWriteOnce",
+                  "description": "Access mode. Use ReadWriteMany when worker pods may be scheduled on different nodes.",
+                  "enum": ["ReadWriteOnce", "ReadWriteMany"],
+                  "required": [],
+                  "title": "accessMode",
+                  "type": "string"
+                },
+                "size": {
+                  "default": "1Gi",
+                  "description": "Size of the PVC.",
+                  "required": [],
+                  "title": "size",
+                  "type": "string"
+                },
+                "annotations": {
+                  "additionalProperties": true,
+                  "description": "Additional annotations for the PVC.",
+                  "required": [],
+                  "title": "annotations",
+                  "type": "object"
+                }
+              },
+              "required": ["enabled", "existingClaim", "storageClass", "accessMode", "size", "annotations"],
+              "title": "persistence",
+              "type": "object"
+            }
+          },
+          "required": ["enabled", "builtin", "external", "persistence"],
+          "title": "python",
+          "type": "object"
         }
       },
-      "required": ["initContainer"],
+      "required": ["initContainer", "python"],
       "title": "nodes",
       "type": "object"
+    },
+    "pypiRegistry": {
+      "type": "object",
+      "title": "pypiRegistry",
+      "description": "Configuration for private Python package (PyPI) registry",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "enabled",
+          "description": "Enable private PyPI registry support for the runner sidecar",
+          "default": false
+        },
+        "url": {
+          "type": "string",
+          "title": "url",
+          "description": "URL of the private PyPI index. Sets UV_DEFAULT_INDEX when no config file is provided.",
+          "default": ""
+        },
+        "secretName": {
+          "type": "string",
+          "title": "secretName",
+          "description": "Name of an existing Kubernetes secret containing a uv.toml config file",
+          "default": ""
+        },
+        "secretKey": {
+          "type": "string",
+          "title": "secretKey",
+          "description": "Key within the secret that holds the uv.toml content",
+          "default": "uv.toml"
+        },
+        "customUvConfig": {
+          "type": "string",
+          "title": "customUvConfig",
+          "description": "Inline uv.toml content. When set and secretName is empty, the chart creates a Secret from this content.",
+          "default": ""
+        }
+      },
+      "required": ["enabled", "url", "secretName", "secretKey", "customUvConfig"]
     },
     "npmRegistry": {
       "type": "object",
@@ -4279,6 +4433,37 @@
                 "type": "string"
               }
             },
+            "image": {
+              "additionalProperties": false,
+              "description": "Container image for the external task runner sidecar",
+              "properties": {
+                "repository": {
+                  "default": "n8nio/runners",
+                  "description": "The repository for the external task runner image",
+                  "required": [],
+                  "title": "repository",
+                  "type": "string"
+                },
+                "pullPolicy": {
+                  "default": "IfNotPresent",
+                  "description": "The image pull policy for the external task runner",
+                  "required": [],
+                  "title": "pullPolicy",
+                  "type": "string",
+                  "enum": ["Always", "Never", "IfNotPresent"]
+                },
+                "tag": {
+                  "default": "",
+                  "description": "Override the image tag; defaults to chart appVersion",
+                  "required": [],
+                  "title": "tag",
+                  "type": "string"
+                }
+              },
+              "required": ["repository", "pullPolicy", "tag"],
+              "title": "image",
+              "type": "object"
+            },
             "resources": {
               "additionalProperties": false,
               "properties": {
@@ -4316,7 +4501,7 @@
               "type": "object"
             }
           },
-          "required": ["autoShutdownTimeout", "port", "nodeOptions", "resources"],
+          "required": ["autoShutdownTimeout", "port", "nodeOptions", "image", "resources"],
           "title": "external",
           "type": "object"
         }
@@ -5059,6 +5244,7 @@
     "service",
     "log",
     "nodes",
+    "pypiRegistry",
     "npmRegistry",
     "binaryData",
     "db",

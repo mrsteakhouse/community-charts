@@ -4,7 +4,7 @@
 
 A Helm chart for fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.
 
-![Version: 1.21.0](https://img.shields.io/badge/Version-1.21.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.4](https://img.shields.io/badge/AppVersion-2.23.4-informational?style=flat-square)
+![Version: 1.22.0](https://img.shields.io/badge/Version-1.22.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.4](https://img.shields.io/badge/AppVersion-2.23.4-informational?style=flat-square)
 
 ## Official Documentation
 
@@ -275,9 +275,248 @@ webhook:
 
 Please find more detail about external task runners from [here](https://docs.n8n.io/hosting/securing/hardening-task-runners/).
 
+The external task runner runs as a sidecar container using the dedicated `n8nio/runners` image alongside each worker pod. In queue mode the main pod does **not** receive the sidecar because it does not execute workflows.
+
+### Basic External Task Runner
+
 ```yaml
 taskRunners:
   mode: external
+```
+
+### Pinning the Runner Image Tag
+
+By default the runner image tag matches the chart `appVersion`. Pin an explicit version with `taskRunners.external.image.tag`:
+
+```yaml
+taskRunners:
+  mode: external
+  external:
+    image:
+      repository: n8nio/runners
+      pullPolicy: IfNotPresent
+      tag: "2.23.4"
+```
+
+### External Task Runner with Queue Mode
+
+In queue mode the sidecar is attached to worker pods only — the main pod is excluded automatically because it offloads all workflow execution to workers.
+
+```yaml
+db:
+  type: postgresdb
+
+worker:
+  mode: queue
+
+taskRunners:
+  mode: external
+  external:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+```
+
+## Python Runner Support
+
+The `n8nio/runners` image ships a Python runner alongside the JavaScript runner. Enable it with `nodes.python.enabled: true` (requires n8n 1.111.0+). This activates the Python Code node on the main container and starts the Python launcher inside the sidecar.
+
+> **Tip**: Python runner requires `taskRunners.mode: external`.
+
+### Enable Python Runner
+
+```yaml
+nodes:
+  python:
+    enabled: true
+
+taskRunners:
+  mode: external
+```
+
+### Install Python Packages
+
+The `n8nio/runners` image ships only a bare Python environment. Use `nodes.python.external.packages` to install packages via `uv pip install` before the runner starts. Each listed package is automatically allowed in Code nodes — no separate allowlist entry is needed.
+
+```yaml
+nodes:
+  python:
+    enabled: true
+    external:
+      packages:
+        - pandas
+        - numpy
+        - requests
+
+taskRunners:
+  mode: external
+```
+
+> **Note**: Package installation adds a few seconds to runner startup time on the first start. To avoid re-downloading packages on every pod restart, enable persistence (see below).
+
+#### Persist Python Packages
+
+Enable `nodes.python.persistence` to store installed packages on a PVC. When enabled, `uv pip install` detects existing packages on subsequent starts and skips the download.
+
+```yaml
+nodes:
+  python:
+    enabled: true
+    external:
+      packages:
+        - pandas
+        - numpy
+    persistence:
+      enabled: true
+      size: 2Gi
+      accessMode: ReadWriteOnce  # use ReadWriteMany if workers span multiple nodes
+
+taskRunners:
+  mode: external
+```
+
+Packages are stored at `/home/node/.python-packages` inside the runner sidecar. When `persistence.enabled` is `false` (the default), an `emptyDir` volume is used and packages are re-installed on every pod restart.
+
+For StatefulSet deployments (when `main.count > 1` with `ReadWriteOnce`, or `main.forceToUseStatefulset: true`), each pod receives its own PVC via `volumeClaimTemplates`, so `ReadWriteOnce` works regardless of pod count. For Deployment-mode workers scaled by HPA across multiple nodes, use `accessMode: ReadWriteMany` with a compatible storage class (NFS, CephFS, etc.).
+
+> **Warning**: When `worker.autoscaling.enabled: true`, you **must** set `nodes.python.persistence.accessMode: ReadWriteMany` (or leave persistence disabled). The HPA will not render if python packages persistence is enabled with `ReadWriteOnce`, because scaling workers across nodes would cause PVC mount failures.
+
+To allow all external packages without installing them (e.g. when packages are pre-installed in a custom image), set `allowAll: true`:
+
+```yaml
+nodes:
+  python:
+    enabled: true
+    external:
+      allowAll: true
+
+taskRunners:
+  mode: external
+```
+
+### Private Python Package Registry
+
+By default, `uv pip install` resolves packages from pypi.org. Use `pypiRegistry` to point the runner sidecar at a private or self-hosted index instead (JFrog Artifactory, AWS CodeArtifact, Nexus, etc.).
+
+#### Simple — URL only (no auth or inline credentials)
+
+```yaml
+pypiRegistry:
+  enabled: true
+  url: "https://my.jfrog.io/artifactory/api/pypi/pypi-virtual/simple/"
+```
+
+This sets `UV_DEFAULT_INDEX` in the sidecar, replacing pypi.org as the default index.
+
+#### Advanced — `uv.toml` config file (authentication or multiple indexes)
+
+For authenticated registries, create a `uv.toml` with your index configuration and let the chart store it in a Kubernetes Secret:
+
+```yaml
+pypiRegistry:
+  enabled: true
+  customUvConfig: |
+    [[index]]
+    name = "private"
+    url = "https://my.jfrog.io/artifactory/api/pypi/pypi-virtual/simple/"
+    default = true
+
+    [index.credentials]
+    username = "ci-user"
+    password = "s3cr3t"
+```
+
+The chart creates a Secret from `customUvConfig`, mounts it into the runner sidecar, and sets `UV_CONFIG_FILE` to the mounted path. The entire file is base64-encoded in the Secret.
+
+> **Note**: Do not use `url` together with `customUvConfig` or `secretName` — when a config file is provided, the index URL belongs inside the `uv.toml`.
+
+#### Advanced — reference an existing Secret
+
+If you manage credentials in an existing Kubernetes Secret, reference it directly:
+
+```yaml
+pypiRegistry:
+  enabled: true
+  secretName: "my-uv-config-secret"
+  secretKey: "uv.toml"
+```
+
+The secret must contain a key matching `secretKey` (default: `uv.toml`) whose value is valid `uv.toml` content.
+
+### Restrict Python Module Access
+
+Use `nodes.python.builtin.modules` to allowlist Python standard library modules. Use `["*"]` to allow all. This setting applies to both the n8n broker (security enforcement) and the runner sidecar.
+
+```yaml
+nodes:
+  python:
+    enabled: true
+    builtin:
+      modules:
+        - os
+        - sys
+        - json
+        - math
+    external:
+      packages:
+        - numpy
+        - pandas
+
+taskRunners:
+  mode: external
+```
+
+### Full Queue Mode + External Runner + Python Example
+
+```yaml
+db:
+  type: postgresdb
+
+worker:
+  mode: queue
+  count: 2
+
+  waitMainNodeReady:
+    enabled: true
+
+externalRedis:
+  host: "redis-instance1.ab012cdefghi.eu-central-1.rds.amazonaws.com"
+  username: "default"
+  password: "Pa33w0rd!"
+
+nodes:
+  python:
+    enabled: true
+    builtin:
+      modules:
+        - "*"
+    external:
+      packages:
+        - numpy
+        - pandas
+    persistence:
+      enabled: true
+      size: 2Gi
+      accessMode: ReadWriteMany  # required for queue-mode workers scaled across nodes
+
+taskRunners:
+  mode: external
+  external:
+    image:
+      repository: n8nio/runners
+      pullPolicy: IfNotPresent
+      tag: ""
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
 ```
 
 ## Autoscaling Configuration
@@ -1183,7 +1422,7 @@ helm upgrade [RELEASE_NAME] community-charts/n8n
 | minio.users[0].secretKey | string | `"Change_Me"` | n8n user secret key |
 | nameOverride | string | `""` | This is to override the chart name. |
 | nodeSelector | object | `{}` | For more information checkout: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector |
-| nodes | object | `{"builtin":{"enabled":false,"modules":[]},"external":{"allowAll":false,"packages":[],"reinstallMissingPackages":false},"initContainer":{"image":{"pullPolicy":"IfNotPresent","repository":"node","tag":"20-alpine"},"resources":{}}}` | Node configurations for built-in and external npm packages |
+| nodes | object | `{"builtin":{"enabled":false,"modules":[]},"external":{"allowAll":false,"packages":[],"reinstallMissingPackages":false},"initContainer":{"image":{"pullPolicy":"IfNotPresent","repository":"node","tag":"20-alpine"},"resources":{}},"python":{"builtin":{"modules":[]},"enabled":false,"external":{"allowAll":false,"packages":[]},"persistence":{"accessMode":"ReadWriteOnce","annotations":{},"enabled":false,"existingClaim":"","size":"1Gi","storageClass":""}}}` | Node configurations for built-in and external npm packages |
 | nodes.builtin | object | `{"enabled":false,"modules":[]}` | Enable built-in node functions (e.g., HTTP Request, Code Node, etc.) |
 | nodes.builtin.enabled | bool | `false` | Enable built-in modules for the Code node |
 | nodes.builtin.modules | list | `[]` | List of built-in Node.js modules to allow in the Code node (e.g., crypto, fs). Use '*' to allow all. |
@@ -1197,6 +1436,20 @@ helm upgrade [RELEASE_NAME] community-charts/n8n
 | nodes.initContainer.image.repository | string | `"node"` | Repository for the init container to install npm packages |
 | nodes.initContainer.image.tag | string | `"20-alpine"` | Tag for the init container to install npm packages |
 | nodes.initContainer.resources | object | `{}` | Resources for the init container |
+| nodes.python | object | `{"builtin":{"modules":[]},"enabled":false,"external":{"allowAll":false,"packages":[]},"persistence":{"accessMode":"ReadWriteOnce","annotations":{},"enabled":false,"existingClaim":"","size":"1Gi","storageClass":""}}` | Python Code node configuration. Requires n8n 1.111.0+ and taskRunners.mode: external. |
+| nodes.python.builtin | object | `{"modules":[]}` | Built-in Python module access for the Code node. |
+| nodes.python.builtin.modules | list | `[]` | Python standard library modules allowed in Code nodes. Use ['*'] to allow all. |
+| nodes.python.enabled | bool | `false` | Enable Python code execution in the Code node via external task runners. |
+| nodes.python.external | object | `{"allowAll":false,"packages":[]}` | External Python package access for the Code node. |
+| nodes.python.external.allowAll | bool | `false` | Allow all external Python packages in Code nodes. When true, sets N8N_RUNNERS_EXTERNAL_ALLOW=* regardless of packages list. |
+| nodes.python.external.packages | list | `[]` | Python packages to install via uv before starting the runner (e.g. ["pandas", "numpy"]). Each listed package is also automatically allowed as an external package in Code nodes. |
+| nodes.python.persistence | object | `{"accessMode":"ReadWriteOnce","annotations":{},"enabled":false,"existingClaim":"","size":"1Gi","storageClass":""}` | Persistence for Python packages installed by uv. Optional PVC so packages survive pod restarts without re-downloading. |
+| nodes.python.persistence.accessMode | string | `"ReadWriteOnce"` | Access mode. Use ReadWriteMany when worker pods may be scheduled on different nodes. |
+| nodes.python.persistence.annotations | object | `{}` | Additional annotations for the PVC. |
+| nodes.python.persistence.enabled | bool | `false` | Enable persistence. When false, packages are installed into an emptyDir and lost on pod restart. |
+| nodes.python.persistence.existingClaim | string | `""` | Use an existing PVC instead of creating one. When set, no PVC is created by this chart. |
+| nodes.python.persistence.size | string | `"1Gi"` | Size of the PVC. |
+| nodes.python.persistence.storageClass | string | `""` | Storage class for the PVC. Empty string uses the cluster default. |
 | npmRegistry | object | `{"customNpmrc":"","enabled":false,"secretKey":"npmrc","secretName":"","url":""}` | Configuration for private npm registry |
 | npmRegistry.customNpmrc | string | `""` | Custom .npmrc content (optional, overrides secret if provided) |
 | npmRegistry.enabled | bool | `false` | Enable private npm registry |
@@ -1221,6 +1474,12 @@ helm upgrade [RELEASE_NAME] community-charts/n8n
 | postgresql.primary.service | object | `{"ports":{"postgresql":5432}}` | This is for setting up the primary service. |
 | postgresql.primary.service.ports | object | `{"postgresql":5432}` | This is for setting up the service ports. |
 | postgresql.primary.service.ports.postgresql | int | `5432` | This is for setting up the postgresql port. |
+| pypiRegistry | object | `{"customUvConfig":"","enabled":false,"secretKey":"uv.toml","secretName":"","url":""}` | Configuration for private Python package (PyPI) registry. Used by the runner sidecar when nodes.python.external.packages is set. |
+| pypiRegistry.customUvConfig | string | `""` | Inline uv.toml content. When set and secretName is empty, the chart creates a Secret from this content (mirrors customNpmrc behaviour). Mutually exclusive with url. |
+| pypiRegistry.enabled | bool | `false` | Enable private PyPI registry support for the runner sidecar. |
+| pypiRegistry.secretKey | string | `"uv.toml"` | Key within the secret that holds the uv.toml content. |
+| pypiRegistry.secretName | string | `""` | Name of an existing Kubernetes secret whose data contains a uv.toml config file. When set, the file is mounted into the runner sidecar and UV_CONFIG_FILE is set. |
+| pypiRegistry.url | string | `""` | URL of the private PyPI index (e.g. https://my.jfrog.io/artifactory/api/pypi/pypi/simple/). Used when no config file is provided; sets UV_DEFAULT_INDEX in the sidecar. For authenticated registries embed credentials inline or use customUvConfig/secretName instead. |
 | readinessProbe | object | `{}` | @deprecated Use main, worker, and webhook blocks readinessProbe field instead. This field will be removed in a future release. |
 | redis | object | `{"architecture":"standalone","auth":{"enabled":true},"enabled":false,"image":{"repository":"bitnamilegacy/redis"},"master":{"persistence":{"enabled":false},"service":{"ports":{"redis":6379}}}}` | Bitnami Redis configuration |
 | redis.architecture | string | `"standalone"` | Enable redis architecture. |
@@ -1271,12 +1530,16 @@ helm upgrade [RELEASE_NAME] community-charts/n8n
 | serviceMonitor.targetLabels | list | `[]` | Set of labels to transfer on the Kubernetes Service onto the target. |
 | serviceMonitor.timeout | string | `"10s"` | Set timeout for scrape |
 | strategy | object | `{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"}` | This will set the deployment strategy more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy |
-| taskRunners | object | `{"broker":{"address":"127.0.0.1","port":5679},"external":{"autoShutdownTimeout":15,"mainNodeAuthToken":"","nodeOptions":["--max-semi-space-size=16","--max-old-space-size=300"],"port":5680,"resources":{"limits":{"cpu":"2000m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"32Mi"}},"workerNodeAuthToken":""},"maxConcurrency":5,"mode":"internal","taskHeartbeatInterval":30,"taskTimeout":60}` | Task runners mode. Please follow the documentation for more information: https://docs.n8n.io/hosting/configuration/task-runners/ |
+| taskRunners | object | `{"broker":{"address":"127.0.0.1","port":5679},"external":{"autoShutdownTimeout":15,"image":{"pullPolicy":"IfNotPresent","repository":"n8nio/runners","tag":""},"mainNodeAuthToken":"","nodeOptions":["--max-semi-space-size=16","--max-old-space-size=300"],"port":5680,"resources":{"limits":{"cpu":"2000m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"32Mi"}},"workerNodeAuthToken":""},"maxConcurrency":5,"mode":"internal","taskHeartbeatInterval":30,"taskTimeout":60}` | Task runners mode. Please follow the documentation for more information: https://docs.n8n.io/hosting/configuration/task-runners/ |
 | taskRunners.broker | object | `{"address":"127.0.0.1","port":5679}` | The address for the broker of the external task runner |
 | taskRunners.broker.address | string | `"127.0.0.1"` | The address for the broker of the external task runner |
 | taskRunners.broker.port | int | `5679` | The port for the broker of the external task runner |
-| taskRunners.external | object | `{"autoShutdownTimeout":15,"mainNodeAuthToken":"","nodeOptions":["--max-semi-space-size=16","--max-old-space-size=300"],"port":5680,"resources":{"limits":{"cpu":"2000m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"32Mi"}},"workerNodeAuthToken":""}` | The configuration for the external task runner |
+| taskRunners.external | object | `{"autoShutdownTimeout":15,"image":{"pullPolicy":"IfNotPresent","repository":"n8nio/runners","tag":""},"mainNodeAuthToken":"","nodeOptions":["--max-semi-space-size=16","--max-old-space-size=300"],"port":5680,"resources":{"limits":{"cpu":"2000m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"32Mi"}},"workerNodeAuthToken":""}` | The configuration for the external task runner |
 | taskRunners.external.autoShutdownTimeout | int | `15` | The auto shutdown timeout for the external task runner in seconds |
+| taskRunners.external.image | object | `{"pullPolicy":"IfNotPresent","repository":"n8nio/runners","tag":""}` | The image for the external task runner sidecar. Tag must match the n8n appVersion. |
+| taskRunners.external.image.pullPolicy | string | `"IfNotPresent"` | This sets the pull policy for images. |
+| taskRunners.external.image.repository | string | `"n8nio/runners"` | The repository for the external task runner image |
+| taskRunners.external.image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | taskRunners.external.mainNodeAuthToken | string | `""` | The auth token for the main node |
 | taskRunners.external.nodeOptions | list | `["--max-semi-space-size=16","--max-old-space-size=300"]` | The node options for the external task runner |
 | taskRunners.external.port | int | `5680` | The port for the external task runner |

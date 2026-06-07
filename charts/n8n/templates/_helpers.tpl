@@ -404,6 +404,27 @@ app.kubernetes.io/component: persistence
 {{- end }}
 
 {{/*
+n8n python packages PVC name
+*/}}
+{{- define "n8n-python.packages.name" -}}
+{{- printf "%s-python-packages" (include "n8n.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
+n8n python packages PVC full name (respects existingClaim)
+*/}}
+{{- define "n8n-python.packages.fullname" -}}
+{{- default (include "n8n-python.packages.name" .) .Values.nodes.python.persistence.existingClaim -}}
+{{- end -}}
+
+{{/*
+n8n task runner uv install shell command string (unquoted)
+*/}}
+{{- define "n8n.taskRunners.uvInstallCommand" -}}
+UV_CACHE_DIR=/tmp/.uv-cache UV_LINK_MODE=copy uv pip install --target /home/node/.python-packages {{ .Values.nodes.python.external.packages | join " " }} && export PYTHONPATH=/home/node/.python-packages && exec /usr/local/bin/task-runner-launcher javascript{{ ternary " python" "" .Values.nodes.python.enabled }}
+{{- end -}}
+
+{{/*
 n8n npm install script logic
 */}}
 {{- define "n8n.npmInstallScript" -}}

@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a community Helm chart repository hosting production-grade Kubernetes charts for: `actualbudget`, `cloudflared`, `drone`, `kserve`, `mlflow`, `n8n`, `outline`, and `pypiserver`. Charts are published to GitHub Pages via the `chart-releaser` action.
 
+## External Documentation
+
+### n8n
+
+When working on the `n8n` chart, use `https://docs.n8n.io/llms.txt` as the entry point for official n8n documentation. That file lists available documentation pages — fetch individual pages from it as needed for accurate, up-to-date details on configuration, environment variables, and features.
+
 ## Common Commands
 
 ### Linting
@@ -92,6 +98,7 @@ charts/<name>/
 - `appVersion` tracks the upstream application version.
 - Breaking changes bump MAJOR version and must document manual upgrade steps in `README.md.gotmpl` under an "Upgrading" section.
 - The `artifacthub.io/changes` annotation in `Chart.yaml` is used to auto-generate release notes — always populate it for every change.
+- **Bump `version` only once per branch/PR.** After the first bump, do not bump again for subsequent commits on the same branch — all changes in the PR are released together under the single bumped version.
 
 ### CI Pipeline
 
