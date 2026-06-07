@@ -1056,6 +1056,10 @@ externalRedis:
   # -- The name of an existing secret with Redis (must contain key `redis-password`) and Sentinel credentials.
   # When it's set, the `externalRedis.password` parameter is ignored
   existingSecret: ""
+  # -- The key in `externalRedis.existingSecret` that stores the Redis username.
+  existingUsernameKey: ""
+  # -- The key in `externalRedis.existingSecret` that stores the Redis password.
+  existingPasswordKey: ""
   # -- List of Redis Cluster nodes. Setting this variable will create a Redis Cluster client instead of a Redis client, and n8n will ignore `externalRedis.host` and `externalRedis.port`.
   clusterNodes: []
     # - host: redis-1
@@ -1120,6 +1124,8 @@ externalPostgresql:
   # -- The name of an existing secret with PostgreSQL (must contain key `postgres-password`) and credentials.
   # When it's set, the `externalPostgresql.password` parameter is ignored
   existingSecret: ""
+  # -- The key in `externalPostgresql.existingSecret` that stores the PostgreSQL password.
+  existingSecretPasswordKey: ""
 
 # -- Minio configuration
 minio:

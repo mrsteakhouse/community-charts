@@ -4,7 +4,7 @@
 
 A Helm chart for fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.
 
-![Version: 1.18.0](https://img.shields.io/badge/Version-1.18.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.4](https://img.shields.io/badge/AppVersion-2.23.4-informational?style=flat-square)
+![Version: 1.19.0](https://img.shields.io/badge/Version-1.19.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.4](https://img.shields.io/badge/AppVersion-2.23.4-informational?style=flat-square)
 
 ## Official Documentation
 
@@ -161,6 +161,7 @@ externalPostgresql:
   database: "n8n"
 
   existingSecret: "my-k8s-secret-contains-postgres-password-key-and-credential"
+  existingSecretPasswordKey: "my-postgres-password-key"
 ```
 
 ## Queue Mode with Bitnami's Redis
@@ -230,6 +231,8 @@ externalRedis:
   username: "default"
 
   existingSecret: "my-k8s-secret-contains-redis-password-key-and-credential"
+  existingUsernameKey: "my-redis-username-key"
+  existingPasswordKey: "my-redis-password-key"
 ```
 
 ## Webhook Node Deployment
@@ -968,18 +971,21 @@ helm upgrade [RELEASE_NAME] community-charts/n8n
 | dnsPolicy | string | `""` | For more information checkout: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy |
 | encryptionKey | string | `""` | If you install n8n first time, you can keep this empty and it will be auto generated and never change again. If you already have a encryption key generated before, please use it here. |
 | existingEncryptionKeySecret | string | `""` | The name of an existing secret with encryption key. The secret must contain a key with the name N8N_ENCRYPTION_KEY. |
-| externalPostgresql | object | `{"database":"n8n","existingSecret":"","host":"","password":"","port":5432,"username":"postgres"}` | External PostgreSQL parameters |
+| externalPostgresql | object | `{"database":"n8n","existingSecret":"","existingSecretPasswordKey":"","host":"","password":"","port":5432,"username":"postgres"}` | External PostgreSQL parameters |
 | externalPostgresql.database | string | `"n8n"` | The name of the external PostgreSQL database. For more information: https://docs.n8n.io/hosting/configuration/supported-databases-settings/#required-permissions |
 | externalPostgresql.existingSecret | string | `""` | The name of an existing secret with PostgreSQL (must contain key `postgres-password`) and credentials. When it's set, the `externalPostgresql.password` parameter is ignored |
+| externalPostgresql.existingSecretPasswordKey | string | `""` | The key in `externalPostgresql.existingSecret` that stores the PostgreSQL password. |
 | externalPostgresql.host | string | `""` | External PostgreSQL server host |
 | externalPostgresql.password | string | `""` | External PostgreSQL password |
 | externalPostgresql.port | int | `5432` | External PostgreSQL server port |
 | externalPostgresql.username | string | `"postgres"` | External PostgreSQL username |
-| externalRedis | object | `{"clusterNodes":[],"database":0,"dualStack":false,"existingSecret":"","host":"","password":"","port":6379,"tls":{"enabled":false},"username":""}` | External Redis parameters |
+| externalRedis | object | `{"clusterNodes":[],"database":0,"dualStack":false,"existingPasswordKey":"","existingSecret":"","existingUsernameKey":"","host":"","password":"","port":6379,"tls":{"enabled":false},"username":""}` | External Redis parameters |
 | externalRedis.clusterNodes | list | `[]` | List of Redis Cluster nodes. Setting this variable will create a Redis Cluster client instead of a Redis client, and n8n will ignore `externalRedis.host` and `externalRedis.port`. |
 | externalRedis.database | int | `0` | Redis database for Bull queue. |
 | externalRedis.dualStack | bool | `false` | Enable dual-stack support (IPv4 and IPv6) on Redis connections. |
+| externalRedis.existingPasswordKey | string | `""` | The key in `externalRedis.existingSecret` that stores the Redis password. |
 | externalRedis.existingSecret | string | `""` | The name of an existing secret with Redis (must contain key `redis-password`) and Sentinel credentials. When it's set, the `externalRedis.password` parameter is ignored |
+| externalRedis.existingUsernameKey | string | `""` | The key in `externalRedis.existingSecret` that stores the Redis username. |
 | externalRedis.host | string | `""` | External Redis server host |
 | externalRedis.password | string | `""` | External Redis password |
 | externalRedis.port | int | `6379` | External Redis server port |
