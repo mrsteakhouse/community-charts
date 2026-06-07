@@ -4,7 +4,7 @@
 
 A Helm chart for fair-code workflow automation platform with native AI capabilities. Combine visual building with custom code, self-host or cloud, 400+ integrations.
 
-![Version: 1.20.0](https://img.shields.io/badge/Version-1.20.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.4](https://img.shields.io/badge/AppVersion-2.23.4-informational?style=flat-square)
+![Version: 1.21.0](https://img.shields.io/badge/Version-1.21.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2.23.4](https://img.shields.io/badge/AppVersion-2.23.4-informational?style=flat-square)
 
 ## Official Documentation
 
@@ -815,6 +815,66 @@ binaryData:
     existingSecret: "your-existing-secret"
 ```
 
+## Extra Manifests
+
+The chart supports deploying arbitrary Kubernetes resources alongside n8n using `extraManifests` and `extraTemplateManifests`. Standard chart labels (`helm.sh/chart`, `app.kubernetes.io/*`) are automatically merged into each manifest's `metadata.labels`.
+
+### `extraManifests` — Static Manifests
+
+Accepts a list of Kubernetes resource **objects** or raw **YAML strings**. No Helm templating is evaluated.
+
+#### Object format
+
+```yaml
+extraManifests:
+  - apiVersion: postgresql.cnpg.io/v1
+    kind: Cluster
+    metadata:
+      name: postgresql
+    spec:
+      instances: 1
+      enablePDB: false
+      storage:
+        storageClass: csi-disk
+        size: 5Gi
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: my-extra-config
+    data:
+      key: value
+```
+
+#### String format (supports multi-document YAML with `---`)
+
+```yaml
+extraManifests:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: my-string-config
+    data:
+      key: value
+```
+
+### `extraTemplateManifests` — Manifests with Helm Templating
+
+Each item must be a YAML **string** (use `|` block scalar). Helm template functions are evaluated, giving access to `.Release`, `.Values`, `.Chart`, etc.
+
+```yaml
+extraTemplateManifests:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: release-info
+      namespace: {{ .Release.Namespace }}
+    data:
+      release: {{ .Release.Name }}
+      chart: {{ .Chart.Version }}
+```
+
 ## Upgrading
 
 This section outlines major updates and breaking changes for each version of the Helm Chart to help you transition smoothly between releases.
@@ -1019,7 +1079,9 @@ helm upgrade [RELEASE_NAME] community-charts/n8n
 | externalRedis.tls.enabled | bool | `false` | Enable TLS on Redis connections. |
 | externalRedis.username | string | `""` | External Redis username |
 | extraEnvVars | object | `{}` | @deprecated Use main, worker, and webhook blocks extraEnvVars fields instead. This field will be removed in a future release. |
+| extraManifests | list | `[]` | List of extra Kubernetes manifests (objects or YAML strings) to deploy alongside n8n. Chart labels are automatically merged into each manifest's metadata. |
 | extraSecretNamesForEnvFrom | list | `[]` | @deprecated Use main, worker, and webhook blocks extraSecretNamesForEnvFrom fields instead. This field will be removed in a future release. |
+| extraTemplateManifests | list | `[]` | List of extra Kubernetes manifests as Helm template strings to deploy alongside n8n. Chart labels are automatically merged into each manifest's metadata. |
 | fullnameOverride | string | `""` |  |
 | gracefulShutdownTimeout | int | `30` | graceful shutdown timeout in seconds |
 | image | object | `{"pullPolicy":"IfNotPresent","repository":"n8nio/n8n","tag":""}` | This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/ |

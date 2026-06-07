@@ -1133,6 +1133,12 @@ externalPostgresql:
   # -- The key in `externalPostgresql.existingSecret` that stores the PostgreSQL password.
   existingSecretPasswordKey: ""
 
+# -- List of extra Kubernetes manifests (objects or YAML strings) to deploy alongside n8n. Chart labels are automatically merged into each manifest's metadata.
+extraManifests: []
+
+# -- List of extra Kubernetes manifests as Helm template strings to deploy alongside n8n. Chart labels are automatically merged into each manifest's metadata.
+extraTemplateManifests: []
+
 # -- Minio configuration
 minio:
   # -- Enable minio
