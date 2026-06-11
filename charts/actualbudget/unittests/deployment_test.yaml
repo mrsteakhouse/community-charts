@@ -355,8 +355,9 @@ tests:
   - it: should use the image tag without modification when digest is not set
     asserts:
       - contains:
-          path: spec.template.spec.containers[?(@.name == "actualbudget")].image
-          content: "actualbudget:25.1.0"
+          path: spec.template.spec.containers[?(@.name == "actualbudget")]
+          content:
+            image: "actualbudget:25.1.0"
 
   - it: should add digest to image tag when digest is set
     set:
@@ -364,8 +365,9 @@ tests:
         digest: "sha256:fake-digest"
     asserts:
       - contains:
-          path: spec.template.spec.containers[?(@.name == "actualbudget")].image
-          content: "actualbudget:25.1.0@sha256:fake-digest"
+          path: spec.template.spec.containers[?(@.name == "actualbudget")]
+          content:
+            image: "actualbudget:25.1.0@sha256:fake-digest"
 
   - it: should match snapshot of default values
     asserts:
