@@ -1986,6 +1986,56 @@ tests:
             value: "fs,crypto"
           any: true
         template: deployment.yaml
+  
+  - it: should add unscoped community packages to install script
+    set:
+      nodes:
+        external:
+          packages:
+            - "n8n-nodes-python@0.1.4"
+            - "n8n-nodes-chatwoot@0.1.40"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.initContainers[?(@.name == "npm-install")].args[0]
+          pattern: 'export COMMUNITY_PACKAGES="n8n-nodes-python@0\.1\.4 n8n-nodes-chatwoot@0\.1\.40"'
+        template: deployment.yaml
+      - matchRegex:
+          path: spec.template.spec.initContainers[?(@.name == "npm-install")].args[0]
+          pattern: 'export NON_COMMUNITY_PACKAGES=""'
+        template: deployment.yaml
+  
+  - it: should add scoped community packages to install script
+    set:
+      nodes:
+        external:
+          packages:
+            - "@mycompany/n8n-nodes-test@1.0.0"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.initContainers[?(@.name == "npm-install")].args[0]
+          pattern: 'export COMMUNITY_PACKAGES="@mycompany/n8n-nodes-test@1\.0\.0"'
+        template: deployment.yaml
+      - matchRegex:
+          path: spec.template.spec.initContainers[?(@.name == "npm-install")].args[0]
+          pattern: 'export NON_COMMUNITY_PACKAGES=""'
+        template: deployment.yaml
+  
+  - it: should not add non-node packages to community node installer script
+    set:
+      nodes:
+        external:
+          packages:
+            - "example@2.29.4"
+            - "@scope/example@1.0.0"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.initContainers[?(@.name == "npm-install")].args[0]
+          pattern: 'export COMMUNITY_PACKAGES=""'
+        template: deployment.yaml
+      - matchRegex:
+          path: spec.template.spec.initContainers[?(@.name == "npm-install")].args[0]
+          pattern: 'export NON_COMMUNITY_PACKAGES="example@2\.29\.4 @scope/example@1\.0\.0"'
+        template: deployment.yaml
 
   - it: should only keep npm packages and not community packages when nodes.external.packages is set and taskRunners.mode is internal
     set:

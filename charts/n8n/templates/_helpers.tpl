@@ -294,12 +294,24 @@ Extract package names from a list of strings
 {{- end -}}
 
 {{/*
-Filter community packages (starting with n8n-nodes-)
+Return a non-empty string if the package is a community package.
+*/}}
+{{- define "n8n.isCommunityPackage" -}}
+{{- $pkg := regexReplaceAll "@[^/@]+$" . "" -}}
+{{- $name := $pkg -}}
+{{- if hasPrefix "@" $pkg -}}
+  {{- $name = (splitList "/" $pkg | last) -}}
+{{- end -}}
+{{- if hasPrefix "n8n-nodes-" $name -}}true{{- end -}}
+{{- end -}}
+
+{{/*
+Filter community packages (starting with n8n-nodes-, also if scoped)
 */}}
 {{- define "n8n.communityPackages" -}}
 {{- $community := list -}}
 {{- range .Values.nodes.external.packages -}}
-{{- if hasPrefix "n8n-nodes-" . -}}
+{{- if include "n8n.isCommunityPackage" . -}}
 {{- $community = append $community . -}}
 {{- end -}}
 {{- end -}}
@@ -312,7 +324,7 @@ Filter non-community packages (as a space-separated string)
 {{- define "n8n.nonCommunityPackages" -}}
 {{- $nonCommunity := list -}}
 {{- range .Values.nodes.external.packages -}}
-{{- if not (hasPrefix "n8n-nodes-" .) -}}
+{{- if not (include "n8n.isCommunityPackage" .) -}}
 {{- $nonCommunity = append $nonCommunity . -}}
 {{- end -}}
 {{- end -}}

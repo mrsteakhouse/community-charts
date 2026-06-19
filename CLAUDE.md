@@ -67,6 +67,7 @@ Every chart follows this layout:
 charts/<name>/
 ├── Chart.yaml          # Chart metadata, version, appVersion, ArtifactHub annotations
 ├── Chart.lock          # Locked dependency versions
+├── .helmignore         # Excludes dev/test files from the packaged chart tarball
 ├── values.yaml         # Default values
 ├── values.schema.json  # JSON Schema validation for values (additionalProperties: false)
 ├── values-kind.yaml    # Minimal values for kind cluster CI testing
@@ -88,12 +89,28 @@ charts/<name>/
     └── *_test.yaml     # helm-unittest test suites (run via `helm unittest`)
 ```
 
+Every non-deprecated chart's `.helmignore` must exclude files that are not needed in the packaged tarball. At minimum it must contain:
+
+```
+README.md.gotmpl
+values-kind.yaml
+CLAUDE.md
+unittests/
+```
+
+Do not apply `.helmignore` changes to deprecated charts (currently: `kserve`).
+
 ### Versioning Rules
 
 - **Any change** to a chart (including docs) requires a `version` bump in `Chart.yaml` following semver.
 - `appVersion` tracks the upstream application version.
 - Breaking changes bump MAJOR version and must document manual upgrade steps in `README.md.gotmpl` under an "Upgrading" section.
-- The `artifacthub.io/changes` annotation in `Chart.yaml` is used to auto-generate release notes — always populate it for every change.
+- The `artifacthub.io/changes` annotation in `Chart.yaml` is used to auto-generate release notes — always populate it for every change. When linking to a GitHub issue, use `name: GitHub Issue` (not `Issue` or any other variant):
+  ```yaml
+  links:
+    - name: GitHub Issue
+      url: https://github.com/community-charts/helm-charts/issues/<number>
+  ```
 - **Bump `version` only once per branch/PR.** After the first bump, do not bump again for subsequent commits on the same branch — all changes in the PR are released together under the single bumped version.
 
 ### CI Pipeline
@@ -101,8 +118,9 @@ charts/<name>/
 **`.github/workflows/release.yml`** (runs on all PRs/pushes):
 
 1. **lint-ah**: Runs `ah lint` on all charts for ArtifactHub compliance.
-2. **lint-test**: Runs `ct lint` (which also calls `helm unittest`) and `ct install` on changed charts only. Charts with a `.skip-kind-test` file skip the `ct install` step.
-3. **release**: On merge to `main`, runs `chart-releaser` to package, GPG-sign, and publish changed charts to GitHub Pages.
+2. **check-helm-docs**: Runs `helm-docs` and fails if any `README.md` differs from what is committed — catches PRs where `README.md.gotmpl` or `values.yaml` doc comments were updated without regenerating the README.
+3. **lint-test**: Runs `ct lint` (which also calls `helm unittest`) and `ct install` on changed charts only. Requires both `lint-ah` and `check-helm-docs` to pass. Charts with a `.skip-kind-test` file skip the `ct install` step.
+4. **release**: On merge to `main`, runs `chart-releaser` to package, GPG-sign, and publish changed charts to GitHub Pages.
 
 **`.github/workflows/security-scan.yml`** (runs on changes to `charts/**`):
 
@@ -118,6 +136,8 @@ metadata:
 ### Unit Test Convention
 
 Tests live in `unittests/` as YAML files using [helm-unittest](https://github.com/helm-unittest/helm-unittest) syntax. Tests assert on rendered template output using `set:` to override values. Snapshot tests use `__snapshot__/` subdirectories.
+
+When asserting a specific value within a larger rendered string (e.g. one line in a multi-line script), use `matchRegex` with a targeted pattern rather than `equal` on the full string — keeps tests focused and resilient to unrelated boilerplate changes. `matchRegex` does substring matching (no anchoring needed); escape regex metacharacters in patterns (e.g. `\.` for literal dots in version strings).
 
 Always validate field types against the official schema before writing tests:
 `https://raw.githubusercontent.com/helm-unittest/helm-unittest/refs/heads/main/schema/helm-testsuite.json`
