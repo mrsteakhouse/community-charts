@@ -418,6 +418,41 @@ n8n python packages PVC full name (respects existingClaim)
 {{- end -}}
 
 {{/*
+n8n community packages PVC name
+*/}}
+{{- define "n8n-community.packages.name" -}}
+{{- printf "%s-community-packages" (include "n8n.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
+n8n community packages PVC full name (respects existingClaim)
+*/}}
+{{- define "n8n-community.packages.fullname" -}}
+{{- default (include "n8n-community.packages.name" .) .Values.nodes.external.persistence.existingClaim -}}
+{{- end -}}
+
+{{/*
+Returns "true" when main.persistence already covers /home/node/.n8n/nodes,
+making a separate community-node-modules volume redundant.
+Only true when persistence is enabled, mountPath is the default, and no subPath
+is redirecting the mount to a subdirectory of the PVC.
+*/}}
+{{- define "n8n.main.coversCommunityNodes" -}}
+{{- if and .Values.main.persistence.enabled (not .Values.main.persistence.subPath) (eq .Values.main.persistence.mountPath "/home/node/.n8n") -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Same check as n8n.main.coversCommunityNodes but for the worker persistence volume.
+*/}}
+{{- define "n8n.worker.coversCommunityNodes" -}}
+{{- if and .Values.worker.persistence.enabled (not .Values.worker.persistence.subPath) (eq .Values.worker.persistence.mountPath "/home/node/.n8n") -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
 n8n task runner uv install shell command string (unquoted)
 */}}
 {{- define "n8n.taskRunners.uvInstallCommand" -}}
@@ -434,10 +469,10 @@ export NON_COMMUNITY_PACKAGES="{{ include "n8n.nonCommunityPackages" . }}"
 echo "$PACKAGES" | sha256sum > /npmdata/packages.hash.new
 if [ ! -f /npmdata/packages.hash ] || ! cmp /npmdata/packages.hash /npmdata/packages.hash.new; then
   if [ -n "$NON_COMMUNITY_PACKAGES" ]; then
-    npm install --loglevel {{ include "n8n.npmLogLevel" .Values.log.level }} --no-save $NON_COMMUNITY_PACKAGES --prefix /npmdata
+    npm install --loglevel {{ include "n8n.npmLogLevel" .Values.log.level }} --no-save --ignore-scripts $NON_COMMUNITY_PACKAGES --prefix /npmdata
   fi
   if [ -n "$COMMUNITY_PACKAGES" ]; then
-    npm install --loglevel {{ include "n8n.npmLogLevel" .Values.log.level }} --no-save $COMMUNITY_PACKAGES --prefix /nodesdata/nodes
+    npm install --loglevel {{ include "n8n.npmLogLevel" .Values.log.level }} --no-save --ignore-scripts $COMMUNITY_PACKAGES --prefix /nodesdata/nodes
   fi
   mv /npmdata/packages.hash.new /npmdata/packages.hash
 else
