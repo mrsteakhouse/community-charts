@@ -123,17 +123,21 @@ If `clientIdKey` or `clientSecretKey` is empty, that specific key is skipped fro
 
 ### Deprecated `dicovertUrl` Field
 
-`login.openid.dicovertUrl` (note the typo) is a legacy alias for `discoveryUrl` kept for backward compatibility. `discoveryUrl` takes precedence when both are set. Do not use `dicovertUrl` in new configurations.
-
-## Known Issue: Secret Namespace
-
-`secret.yaml` uses `.Values.namespace` for the Secret's `namespace:` field. This value does **not** exist in `values.yaml` or `values.schema.json`, and Helm does not set it automatically — this renders as an empty string, which causes the secret to land in the Helm release namespace (the field is simply omitted). The `pvc.yaml` correctly uses `.Release.Namespace`. If namespace isolation is needed for the secret, `.Values.namespace` must be added to the values and schema.
+`login.openid.dicovertUrl` (note the typo) is a legacy alias for `discoveryUrl` kept for backward compatibility. `discoveryUrl` takes precedence when both are set. Do not use `dicovertUrl` in new configurations — it is marked `@deprecated` in `values.yaml`.
 
 ## Security Context
 
 The container runs as UID/GID 1001 (non-root) with all Linux capabilities dropped. `readOnlyRootFilesystem` is `false` — the Node.js process writes to the filesystem during normal operation and cannot run with a read-only root.
 
 The pod's `fsGroup: 1001` with `fsGroupChangePolicy: OnRootMismatch` ensures volume ownership is correct without re-chowning on every pod start.
+
+## CI Install Testing — No `values-kind.yaml` or `.skip-kind-test`
+
+This chart has neither a `values-kind.yaml` file nor a `.skip-kind-test` marker, and that is intentional.
+
+The CI `ct install` step runs `helm install` against a kind cluster using default values when no `values-kind.yaml` is present. The actualbudget chart's defaults (`persistence.enabled: false`, `login.method: "password"`, single ClusterIP service) are sufficient for a smoke-test install with no extra overrides needed — the pod comes up healthy and the liveness probe passes without any additional configuration.
+
+Do **not** add a `values-kind.yaml` unless the chart's default values stop working for CI (e.g., if persistence is ever enabled by default and requires a `storageClass`). Do **not** add `.skip-kind-test` unless the chart genuinely cannot be installed in a kind cluster at all.
 
 ## Values Documentation Conventions
 
