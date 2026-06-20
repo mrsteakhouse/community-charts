@@ -744,7 +744,7 @@
           "type": "boolean"
         },
         "readOnlyRootFilesystem": {
-          "default": false,
+          "default": true,
           "required": [],
           "title": "readOnlyRootFilesystem",
           "type": "boolean"

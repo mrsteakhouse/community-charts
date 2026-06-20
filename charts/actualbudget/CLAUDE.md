@@ -127,7 +127,13 @@ If `clientIdKey` or `clientSecretKey` is empty, that specific key is skipped fro
 
 ## Security Context
 
-The container runs as UID/GID 1001 (non-root) with all Linux capabilities dropped. `readOnlyRootFilesystem` is `false` — the Node.js process writes to the filesystem during normal operation and cannot run with a read-only root.
+The container runs as UID/GID 1001 (non-root) with all Linux capabilities dropped and `readOnlyRootFilesystem: true`.
+
+The only writable paths the server needs are:
+- `/data` — provided by the PVC (or ephemeral storage when persistence is disabled)
+- `/tmp` — provided by a built-in `emptyDir` volume always added by the Deployment template
+
+The built-in `tmp` emptyDir is unconditional — it is always present regardless of `readOnlyRootFilesystem` setting. This was verified by running the actual-server image with `--read-only --tmpfs /tmp`, which starts cleanly (the server only writes to `/data` and `/tmp`).
 
 The pod's `fsGroup: 1001` with `fsGroupChangePolicy: OnRootMismatch` ensures volume ownership is correct without re-chowning on every pod start.
 

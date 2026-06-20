@@ -222,6 +222,32 @@ tests:
             image: fake-init-image
             command: ["fake-init-command"]
 
+  - it: should use emptyDir for data volume when persistence is disabled
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.containers[?(@.name == "actualbudget")].volumeMounts
+          content:
+            name: data
+            mountPath: /data
+
+  - it: should always have a tmp emptyDir volume and mount
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.containers[?(@.name == "actualbudget")].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+
   - it: should set persistence when persistence is enabled
     set:
       persistence:
