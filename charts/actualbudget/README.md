@@ -153,7 +153,7 @@ helm upgrade [RELEASE_NAME] community-charts/actualbudget
 | login.openid.authorizationEndpoint | string | `""` | This is the authorization endpoint for the openid provider. For more information checkout: https://actualbudget.org/docs/config/oauth-auth/#actual_openid_authorization_endpoint |
 | login.openid.clientId | string | `""` | This is the client id for the openid provider. If not set and existingSecret is set, the client id will be read from the existing secret. For more information checkout: https://actualbudget.org/docs/config/oauth-auth/#actual_openid_client_id |
 | login.openid.clientSecret | string | `""` | This is the client secret for the openid provider. If not set and existingSecret is set, the client secret will be read from the existing secret. For more information checkout: https://actualbudget.org/docs/config/oauth-auth/#actual_openid_client_secret |
-| login.openid.dicovertUrl | string | `""` | Deprecated: Please use discoveryUrl instead. This field will be removed in next major version. |
+| login.openid.dicovertUrl | string | `""` | @deprecated Use discoveryUrl instead. This field will be removed in a future release. |
 | login.openid.discoveryUrl | string | `""` | This is the discovery url for the openid provider. For more information checkout: https://actualbudget.org/docs/config/oauth-auth/#actual_openid_discovery_url |
 | login.openid.enforce | bool | `true` | This is for setting the enforce for the openid login. For more information checkout: https://actualbudget.org/docs/config/oauth-auth/#actual_openid_enforce |
 | login.openid.existingSecret | object | `{"clientIdKey":"","clientSecretKey":"","name":""}` | This is for setting up the existing secret for the openid provider. |

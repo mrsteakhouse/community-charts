@@ -110,7 +110,7 @@ login:
     enforce: true
     # -- This is the provider name for the openid provider.
     providerName: "OpenID Connect"
-    # -- Deprecated: Please use discoveryUrl instead. This field will be removed in next major version.
+    # -- @deprecated Use discoveryUrl instead. This field will be removed in a future release.
     dicovertUrl: ""
     # -- This is the discovery url for the openid provider. For more information checkout: https://actualbudget.org/docs/config/oauth-auth/#actual_openid_discovery_url
     discoveryUrl: ""
