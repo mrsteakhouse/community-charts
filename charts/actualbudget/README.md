@@ -4,7 +4,7 @@
 
 A local-first personal finance app
 
-![Version: 1.8.9](https://img.shields.io/badge/Version-1.8.9-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 26.6.0](https://img.shields.io/badge/AppVersion-26.6.0-informational?style=flat-square)
+![Version: 1.9.0](https://img.shields.io/badge/Version-1.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 26.6.0](https://img.shields.io/badge/AppVersion-26.6.0-informational?style=flat-square)
 
 ## Official Documentation
 
@@ -137,6 +137,7 @@ helm upgrade [RELEASE_NAME] community-charts/actualbudget
 | files.server | string | `"/data/server-files"` | The server will put an account.sqlite file in this directory, which will contain the (hashed) server password, a list of all the budget files the server knows about, and the active session token (along with anything else the server may want to store in the future). For more information checkout: https://actualbudget.org/docs/config/#serverfiles |
 | files.user | string | `"/data/user-files"` | The server will put all the budget files in this directory as binary blobs. For more information checkout: https://actualbudget.org/docs/config/#userfiles |
 | fullnameOverride | string | `""` |  |
+| image.digest | string | `""` | Image digest in the format sha256:<hex>. When set, overrides the tag for immutable pulls. |
 | image.pullPolicy | string | `"IfNotPresent"` | This sets the pull policy for images. |
 | image.repository | string | `"actualbudget/actual-server"` | The docker image repository to use |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |

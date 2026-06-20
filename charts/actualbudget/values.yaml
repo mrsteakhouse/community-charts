@@ -13,7 +13,7 @@ image:
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
-  # -- This sets the digest for the image.
+  # -- Image digest in the format sha256:<hex>. When set, overrides the tag for immutable pulls.
   digest: ""
 
 # -- This will set the deployment strategy more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy

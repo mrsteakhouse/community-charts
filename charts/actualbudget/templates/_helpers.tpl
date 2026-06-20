@@ -65,10 +65,10 @@ Create the name of the service account to use
 Create the container image string with optional digest
 */}}
 {{- define "actualbudget.containerImage" -}}
-{{- $image := printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
-{{- if .Values.image.digest }}
-{{- $image }}@{{ .Values.image.digest }}
-{{- else }}
-{{- $image }}
-{{- end }}
+{{- $tag := .Values.image.tag | default .Chart.AppVersion -}}
+{{- if .Values.image.digest -}}
+{{- printf "%s:%s@%s" .Values.image.repository $tag .Values.image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.image.repository $tag -}}
+{{- end -}}
 {{- end }}
