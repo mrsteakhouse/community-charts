@@ -4,7 +4,7 @@
 
 A Helm chart for Mlflow open source platform for the machine learning lifecycle
 
-![Version: 1.8.6](https://img.shields.io/badge/Version-1.8.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 3.14.0](https://img.shields.io/badge/AppVersion-3.14.0-informational?style=flat-square)
+![Version: 1.9.0](https://img.shields.io/badge/Version-1.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 3.14.0](https://img.shields.io/badge/AppVersion-3.14.0-informational?style=flat-square)
 
 ## Official Documentation
 
@@ -343,7 +343,7 @@ ingress:
 
 ## Authentication Example
 
-> **Tip**: auth and ldapAuth can not be enabled at same time!
+> **Tip**: `auth`, `ldapAuth`, and `oidcAuth` are mutually exclusive — enable only one at a time!
 
 ### Authentication with Plain Admin Settings Example
 
@@ -399,7 +399,7 @@ auth:
 
 ## Basic Authentication with LDAP Backend
 
-> **Tip**: auth and ldapAuth can not be enabled at same time!
+> **Tip**: `auth`, `ldapAuth`, and `oidcAuth` are mutually exclusive — enable only one at a time!
 
 ```yaml
 ldapAuth:
@@ -446,6 +446,144 @@ ldapAuth:
   adminGroupDistinguishedName: "cn=test-admin,ou=groups,dc=mlflow,dc=test"
   userGroupDistinguishedName: "cn=test-user,ou=groups,dc=mlflow,dc=test"
   externalSecretForTrustedCACertificate: "external-ca-certificate-secret"
+```
+
+## OIDC Authentication Example
+
+> **Tip**: `oidcAuth`, `auth`, `ldapAuth`, and `oauth2Proxy` are mutually exclusive — enable only one at a time!
+
+The `oidcAuth` block activates the `mlflow-oidc-auth` plugin that is already bundled in the `burakince/mlflow` image. Unlike `oauth2Proxy` (a sidecar proxy), this approach provides native OIDC authentication inside MLflow, mapping OIDC groups to MLflow permissions.
+
+### OIDC Auth with Keycloak (minimal)
+
+```yaml
+oidcAuth:
+  enabled: true
+  discoveryUrl: "https://keycloak.example.com/realms/mlflow/.well-known/openid-configuration"
+  clientId: "mlflow-client"
+  clientSecret: "mlflow-client-secret"
+  groupName:
+    - mlflow-users
+  adminGroupName:
+    - mlflow-admin
+```
+
+### OIDC Auth with Existing Secret
+
+```yaml
+oidcAuth:
+  enabled: true
+  discoveryUrl: "https://keycloak.example.com/realms/mlflow/.well-known/openid-configuration"
+  clientId: "mlflow-client"
+  existingSecret:
+    name: my-oidc-secret
+    clientSecretKey: "OIDC_CLIENT_SECRET"
+  groupName:
+    - mlflow-users
+  adminGroupName:
+    - mlflow-admin
+```
+
+### OIDC Auth with Redis Cache (multi-replica)
+
+```yaml
+oidcAuth:
+  enabled: true
+  discoveryUrl: "https://keycloak.example.com/realms/mlflow/.well-known/openid-configuration"
+  clientId: "mlflow-client"
+  clientSecret: "mlflow-client-secret"
+  groupName:
+    - mlflow-users
+  adminGroupName:
+    - mlflow-admin
+  cache:
+    enabled: true
+    redisUrl: "redis://redis:6379/0"
+```
+
+### OIDC Auth with PostgreSQL User Database
+
+```yaml
+oidcAuth:
+  enabled: true
+  discoveryUrl: "https://keycloak.example.com/realms/mlflow/.well-known/openid-configuration"
+  clientId: "mlflow-client"
+  clientSecret: "mlflow-client-secret"
+  groupName:
+    - mlflow-users
+  adminGroupName:
+    - mlflow-admin
+  database:
+    postgres:
+      enabled: true
+      host: "oidc-users-db.example.com"
+      port: 5432
+      database: "oidc_users"
+      user: "oidcuser"
+      password: "S3cr3t!"
+```
+
+### OIDC Auth with PostgreSQL User Database and Existing Secret
+
+```yaml
+oidcAuth:
+  enabled: true
+  discoveryUrl: "https://keycloak.example.com/realms/mlflow/.well-known/openid-configuration"
+  clientId: "mlflow-client"
+  existingSecret:
+    name: my-oidc-secret
+    clientSecretKey: "OIDC_CLIENT_SECRET"
+  groupName:
+    - mlflow-users
+  adminGroupName:
+    - mlflow-admin
+  database:
+    postgres:
+      enabled: true
+      host: "oidc-users-db.example.com"
+      port: 5432
+      database: "oidc_users"
+      existingSecret:
+        name: oidc-db-secret
+        usernameKey: "username"
+        passwordKey: "password"
+```
+
+## OAuth2 Proxy Example
+
+> **Tip**: `oidcAuth` and `oauth2Proxy` are mutually exclusive. `oauth2Proxy` can coexist with `auth` or `ldapAuth` (proxy in front, MLflow auth behind).
+
+The `oauth2Proxy` block deploys an [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) sidecar container in the same pod. All traffic flows through the proxy first (`Ingress → 4180 → 5000`), so MLflow itself requires no auth configuration.
+
+### OAuth2 Proxy with Keycloak (chart-managed secret)
+
+```yaml
+oauth2Proxy:
+  enabled: true
+  createSecret: true
+  cookieSecret: "a-random-32-char-cookie-secret!!"
+  provider:
+    name: keycloak-oidc
+    issuerURL: "https://keycloak.example.com/realms/mlflow"
+    clientID: "mlflow-client"
+    clientSecret: "mlflow-client-secret"
+    redirectURL: "https://mlflow.example.com/oauth2/callback"
+```
+
+### OAuth2 Proxy with Existing Secret
+
+```yaml
+oauth2Proxy:
+  enabled: true
+  existingSecret:
+    name: my-oauth2-proxy-secret
+    clientIDKey: "client-id"
+    clientSecretKey: "client-secret"
+    cookieSecretKey: "cookie-secret"
+  provider:
+    name: keycloak-oidc
+    issuerURL: "https://keycloak.example.com/realms/mlflow"
+    redirectURL: "https://mlflow.example.com/oauth2/callback"
 ```
 
 ## Auto Scaling Example
@@ -642,7 +780,7 @@ helm upgrade [RELEASE_NAME] community-charts/mlflow
 | auth.configFile | string | `"basic_auth.ini"` | Mlflow authentication INI file |
 | auth.configPath | string | `"/etc/mlflow/auth/"` | Mlflow authentication INI configuration file path. |
 | auth.defaultPermission | string | `"READ"` | Default permission for all users. More details: https://mlflow.org/docs/latest/auth/index.html#permissions |
-| auth.enabled | bool | `false` | Specifies if you want to enable mlflow authentication. auth and ldapAuth can't be enabled at same time. |
+| auth.enabled | bool | `false` | Specifies if you want to enable mlflow authentication. auth, ldapAuth, and oidcAuth can't be enabled at same time. |
 | auth.existingAdminSecret | object | `{"name":"","passwordKey":"password","usernameKey":"username"}` | Specifies if you want to use an existing admin credentials secret for auth. If it's set, adminUsername and adminPassword will be ignored. |
 | auth.existingAdminSecret.name | string | `""` | The name of the existing admin credentials secret. |
 | auth.existingAdminSecret.passwordKey | string | `"password"` | The key of the admin password in the existing admin credentials secret. |
@@ -734,7 +872,7 @@ helm upgrade [RELEASE_NAME] community-charts/mlflow
 | initImages.mlflowDbMigration.tag | string | `""` | mlflow-db-migration init container image tag to use. Default app version |
 | ldapAuth | object | `{"adminGroupDistinguishedName":"","enabled":false,"encodedTrustedCACertificate":"","externalSecretForTrustedCACertificate":"","groupAttribute":"dn","groupAttributeKey":"","lookupBind":"","searchBaseDistinguishedName":"","searchFilter":"(&(objectclass=groupOfUniqueNames)(uniquemember=%s))","tlsVerification":"required","uri":"","userGroupDistinguishedName":""}` | Basic Authentication with LDAP backend |
 | ldapAuth.adminGroupDistinguishedName | string | `""` | LDAP DN for the admin group. e.g.: "cn=test-admin,ou=groups,dc=mlflow,dc=test" |
-| ldapAuth.enabled | bool | `false` | Specifies if you want to enable mlflow LDAP authentication. auth and ldapAuth can't be enabled at same time. |
+| ldapAuth.enabled | bool | `false` | Specifies if you want to enable mlflow LDAP authentication. auth, ldapAuth, and oidcAuth can't be enabled at same time. |
 | ldapAuth.encodedTrustedCACertificate | string | `""` | Base64 encoded trusted CA certificate for LDAP server connection. |
 | ldapAuth.externalSecretForTrustedCACertificate | string | `""` | External secret name for trusted CA certificate for LDAP server connection. |
 | ldapAuth.groupAttribute | string | `"dn"` | LDAP group attribute. |
@@ -755,6 +893,64 @@ helm upgrade [RELEASE_NAME] community-charts/mlflow
 | mysql.image.repository | string | `"bitnamilegacy/mysql"` | This is temporary workaround because of bitnami's deprecation until to completely replace it with our solution. |
 | nameOverride | string | `""` | String to override the default generated name |
 | nodeSelector | object | `{}` | For more information checkout: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector |
+| oauth2Proxy | object | `{"cookieSecret":"","createSecret":false,"enabled":false,"existingSecret":{"clientIDKey":"client-id","clientSecretKey":"client-secret","cookieSecretKey":"cookie-secret","name":""},"extraArgs":["--cookie-secure=true","--cookie-samesite=lax"],"extraEnv":{},"image":{"pullPolicy":"IfNotPresent","repository":"quay.io/oauth2-proxy/oauth2-proxy","tag":"v7.4.0"},"listenPort":4180,"provider":{"clientID":"","clientSecret":"","issuerURL":"","name":"keycloak","redirectURL":""},"resources":{}}` | oauth2-proxy sidecar configuration |
+| oauth2Proxy.cookieSecret | string | `""` | Cookie secret plaintext value — only used when createSecret is true |
+| oauth2Proxy.createSecret | bool | `false` | If true the chart will create a Kubernetes secret with the oauth client id/secret |
+| oauth2Proxy.enabled | bool | `false` | Enable deploying oauth2-proxy as a sidecar to the mlflow pod |
+| oauth2Proxy.existingSecret | object | `{"clientIDKey":"client-id","clientSecretKey":"client-secret","cookieSecretKey":"cookie-secret","name":""}` | Reference a pre-existing secret instead of creating one. All key name fields below are used both when creating and when referencing an existing secret. |
+| oauth2Proxy.existingSecret.clientIDKey | string | `"client-id"` | Secret key that holds the OAuth2 client ID |
+| oauth2Proxy.existingSecret.clientSecretKey | string | `"client-secret"` | Secret key that holds the OAuth2 client secret |
+| oauth2Proxy.existingSecret.cookieSecretKey | string | `"cookie-secret"` | Secret key that holds the cookie secret |
+| oauth2Proxy.existingSecret.name | string | `""` | Name of the pre-existing secret; if empty the chart creates one when createSecret is true |
+| oauth2Proxy.extraArgs | list | `["--cookie-secure=true","--cookie-samesite=lax"]` | Extra args to pass to oauth2-proxy as flags |
+| oauth2Proxy.extraEnv | object | `{}` | Extra environment variables for oauth2-proxy |
+| oauth2Proxy.image | object | `{"pullPolicy":"IfNotPresent","repository":"quay.io/oauth2-proxy/oauth2-proxy","tag":"v7.4.0"}` | OAuth2 Proxy image |
+| oauth2Proxy.image.pullPolicy | string | `"IfNotPresent"` | OAuth2 Proxy image pull policy |
+| oauth2Proxy.image.repository | string | `"quay.io/oauth2-proxy/oauth2-proxy"` | OAuth2 Proxy image repository |
+| oauth2Proxy.image.tag | string | `"v7.4.0"` | OAuth2 Proxy image tag |
+| oauth2Proxy.listenPort | int | `4180` | Port oauth2-proxy listens on inside the pod |
+| oauth2Proxy.provider | object | `{"clientID":"","clientSecret":"","issuerURL":"","name":"keycloak","redirectURL":""}` | Provider specific settings (example: keycloak) |
+| oauth2Proxy.provider.clientID | string | `""` | OAuth2 client ID |
+| oauth2Proxy.provider.clientSecret | string | `""` | OAuth2 client secret — prefer existingSecret for production |
+| oauth2Proxy.provider.issuerURL | string | `""` | OIDC issuer URL for the provider |
+| oauth2Proxy.provider.name | string | `"keycloak"` | Provider name (e.g. keycloak, keycloak-oidc, google, github) |
+| oauth2Proxy.provider.redirectURL | string | `""` | OAuth2 redirect / callback URL |
+| oauth2Proxy.resources | object | `{}` | Resources for the oauth2-proxy container |
+| oidcAuth | object | `{"adminGroupName":["mlflow-admin"],"audience":"","cache":{"enabled":false,"keyPrefix":"mlflow_oidc_auth:","redisUrl":""},"clientId":"","clientSecret":"","database":{"postgres":{"database":"","driver":"","enabled":false,"existingSecret":{"name":"","passwordKey":"password","usernameKey":"username"},"host":"","password":"","port":5432,"user":""},"uri":""},"defaultPermission":"MANAGE","discoveryUrl":"","enabled":false,"existingSecret":{"clientSecretKey":"OIDC_CLIENT_SECRET","name":""},"groupName":["mlflow"],"groupsAttribute":"groups","providerDisplayName":"Login with OIDC","redirectUri":"","scope":"openid,email,profile","sessionCookieSamesite":"lax","sessionCookieSecure":true,"trustedProxies":[]}` | OIDC Authentication via the mlflow-oidc-auth plugin (already bundled in the burakince/mlflow image). Mutually exclusive with auth, ldapAuth, and oauth2Proxy — enable only one auth mechanism. |
+| oidcAuth.adminGroupName | list | `["mlflow-admin"]` | Groups whose members receive admin/MANAGE permission (env: OIDC_ADMIN_GROUP_NAME) |
+| oidcAuth.audience | string | `""` | Optional audience claim validation (env: OIDC_AUDIENCE) |
+| oidcAuth.cache | object | `{"enabled":false,"keyPrefix":"mlflow_oidc_auth:","redisUrl":""}` | Shared cache backend for multi-replica deployments (requires mlflow-oidc-auth[cache], already in image) |
+| oidcAuth.cache.enabled | bool | `false` | Set true to use Redis instead of in-process TTLCache (env: CACHE_BACKEND) |
+| oidcAuth.cache.keyPrefix | string | `"mlflow_oidc_auth:"` | Cache key prefix to avoid collisions when sharing a Redis instance (env: CACHE_KEY_PREFIX) |
+| oidcAuth.cache.redisUrl | string | `""` | Redis connection URL (env: CACHE_REDIS_URL) |
+| oidcAuth.clientId | string | `""` | OIDC client ID (env: OIDC_CLIENT_ID) |
+| oidcAuth.clientSecret | string | `""` | OIDC client secret — use existingSecret for production (env: OIDC_CLIENT_SECRET) |
+| oidcAuth.database | object | `{"postgres":{"database":"","driver":"","enabled":false,"existingSecret":{"name":"","passwordKey":"password","usernameKey":"username"},"host":"","password":"","port":5432,"user":""},"uri":""}` | OIDC user/permission database — separate from the MLflow tracking store. Defaults to sqlite:///auth.db when postgres is not enabled and uri is empty. |
+| oidcAuth.database.postgres.database | string | `""` | Database name for the OIDC user/permission database |
+| oidcAuth.database.postgres.driver | string | `""` | Postgres driver (e.g. psycopg2; leave empty for the default) |
+| oidcAuth.database.postgres.enabled | bool | `false` | Use PostgreSQL for the OIDC user/permission database |
+| oidcAuth.database.postgres.existingSecret | object | `{"name":"","passwordKey":"password","usernameKey":"username"}` | Reference a pre-existing DB credentials secret instead of using user and password above |
+| oidcAuth.database.postgres.existingSecret.name | string | `""` | Name of the pre-existing DB credentials secret; if empty the chart creates one |
+| oidcAuth.database.postgres.existingSecret.passwordKey | string | `"password"` | Key in the secret that holds the database password |
+| oidcAuth.database.postgres.existingSecret.usernameKey | string | `"username"` | Key in the secret that holds the database username |
+| oidcAuth.database.postgres.host | string | `""` | Postgres host for the OIDC user/permission database |
+| oidcAuth.database.postgres.password | string | `""` | Postgres password for the OIDC user/permission database — prefer existingSecret for production |
+| oidcAuth.database.postgres.port | int | `5432` | Postgres port for the OIDC user/permission database |
+| oidcAuth.database.postgres.user | string | `""` | Postgres username for the OIDC user/permission database |
+| oidcAuth.database.uri | string | `""` | Full URI override (env: OIDC_USERS_DB_URI); takes precedence over postgres block when set. Example: postgresql+psycopg2://user:pass@host:5432/oidc_users |
+| oidcAuth.defaultPermission | string | `"MANAGE"` | Default permission for authenticated users: NO_PERMISSIONS / READ / EDIT / MANAGE (env: DEFAULT_MLFLOW_PERMISSION) |
+| oidcAuth.discoveryUrl | string | `""` | OIDC discovery URL (env: OIDC_DISCOVERY_URL) e.g. https://keycloak/realms/mlflow/.well-known/openid-configuration |
+| oidcAuth.existingSecret | object | `{"clientSecretKey":"OIDC_CLIENT_SECRET","name":""}` | Reference a pre-existing secret instead of creating one from clientSecret above |
+| oidcAuth.existingSecret.clientSecretKey | string | `"OIDC_CLIENT_SECRET"` | Key in the secret that holds the OIDC client secret value |
+| oidcAuth.existingSecret.name | string | `""` | Name of the pre-existing secret; if empty the chart creates one from clientSecret |
+| oidcAuth.groupName | list | `["mlflow"]` | Groups whose members are allowed to access MLflow (env: OIDC_GROUP_NAME) |
+| oidcAuth.groupsAttribute | string | `"groups"` | JWT claim that contains group memberships (env: OIDC_GROUPS_ATTRIBUTE) |
+| oidcAuth.providerDisplayName | string | `"Login with OIDC"` | Display name on the Login button in the MLflow UI (env: OIDC_PROVIDER_DISPLAY_NAME) |
+| oidcAuth.redirectUri | string | `""` | Optional redirect URI; auto-detected from request headers when empty (env: OIDC_REDIRECT_URI) |
+| oidcAuth.scope | string | `"openid,email,profile"` | Scopes requested from the OIDC provider (env: OIDC_SCOPE) |
+| oidcAuth.sessionCookieSamesite | string | `"lax"` | SameSite policy for session cookies: lax / strict / none (env: SESSION_COOKIE_SAMESITE) |
+| oidcAuth.sessionCookieSecure | bool | `true` | Require HTTPS for session cookies; set false only in local/dev environments (env: SESSION_COOKIE_SECURE) |
+| oidcAuth.trustedProxies | list | `[]` | List of trusted proxy IPs/CIDRs (e.g. ingress controller CIDR). Required when MLflow runs behind an ingress; fixes redirect URI auto-detection. (env: TRUSTED_PROXIES) |
 | podAnnotations | object | `{}` | Annotations for the pod |
 | podSecurityContext | object | `{"fsGroup":1001,"fsGroupChangePolicy":"OnRootMismatch"}` | This is for setting Security Context to a Pod. For more information checkout: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/ |
 | postgresql | object | `{"architecture":"standalone","auth":{"database":"mlflow","password":"","username":""},"enabled":false,"image":{"repository":"bitnamilegacy/postgresql"},"primary":{"persistence":{"enabled":true,"existingClaim":""},"service":{"ports":{"postgresql":5432}}}}` | Bitnami PostgreSQL configuration. For more information checkout: https://github.com/bitnami/charts/tree/main/bitnami/postgresql |
