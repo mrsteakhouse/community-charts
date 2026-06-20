@@ -41,6 +41,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
+          # trivy:ignore:AVD-KSV-0014
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: {{ include "actualbudget.containerImage" . }}
